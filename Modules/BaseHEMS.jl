@@ -1,11 +1,11 @@
 """ 
-    Standar library containing all the basic types and functions used in modeling the solar home
+    Standar library containing all the basic functions used in modeling the solar home
 """
 module BaseHEMS
 
 
 #import modules that will be used inside the module
-using JuMP,PyPlot,GLPK, SDDP;
+using JuMP,PyPlot,GLPK, SDDP, PyCall ;
 
 using TypesHEMS # My types are defined in the file TypesHEMS.jl 
 
@@ -110,6 +110,7 @@ function initControledVars(ctroledVars::ControledVars; opt::AbstractString = "su
   if isequal(opt,"sum" )
     ctrVr=ctroledVars;
     Pg_t, Ps_t, Pw_t,Cost_t = round.((ctrVr.Pg, ctrVr.Ps, ctrVr.Pw, ctrVr.Pg*0.2).*0.5 .|> sum, digits=2);
+    
     return ControledVarsSum(Pg_t, Ps_t, Pw_t,Cost_t)
     
   else
@@ -175,7 +176,7 @@ thesis.
 - `fixedVariables::AbstractFixedVars=initFixedVars()`: Fied variables structure 
 
 # Keywords arguments 
-- `GpoPeriods::Array{T,2}=[0 0]`: Array with each row defining a GPO period `where {T<:Integer}`
+- `GpoPeriods::Array{T,2}=[0 0]`: Array with each row defining a GPO period `where {T<:Integer}`.Ex = [48 60] (outage occuring from hour 24 to 30)
 - `powerSave::Real=0`: Power save option in percentage of the nominal load demande (0.5 for 
 0.5Pl_star for instance). By default, no power save.
                 
@@ -251,37 +252,100 @@ function ruleBasedControl(Pl_star::Array{U,1}, Pv_star::Array{U,1},
 end     
 
 
+#***********************************************************************************************
+"""
+    offPeakHighlight(axx::Array{PyObject,1})
+
+    Hightlight the off peak periods on each subfigure given by the solvProb 
+
+# Arguments
+
+- `axx::Array{PyObject,1}`: An array of type PyObject. Output of `fig, axx = subplots(...)`
+
+"""
+function highlightOffPeak(axx::Array{PyObject,1})
+  ~,x_max = axx[1,1].get_xlim()
+
+  for cur_row in 1:size(axx,1), cur_day in 0:x_max
+    axx[cur_row,1].axvspan(cur_day, cur_day+0.25,color="dodgerblue", alpha=0.1)
+  end
+
+end
+
 
 #***********************************************************************************************
 """
-    plot_solHomRslt(args...)
+    highlightGPO(axx, GpoPeriods=[0 0])
+
+    Hightlight the off peak periods on each subfigure given by the solvProb 
+
+# Arguments
+
+- `axx::Array{PyObject,1}`: An array of type PyObject. Output of `fig, axx = subplots(...)`
+- `GpoPeriods::Array{T,2}=[0 0]`: Array with each row defining a GPO period `where {T<:Integer}`.Ex = [48 60] (outage occuring from hour 24 to 30)
+
+"""
+function highlightGPO(axx::Array{T,1}, GpoPeriods::Array{U,2}=[0 0]) where {T<:PyObject, U<:Integer}
+    
+  ~,x_max = axx[1,1].get_xlim()
+    
+  if !isequal(GpoPeriods, [0 0]) # Enter the if condition only in case of GpoPeriods 
+      #different from  [0 0]
+    #println("papa")
+    GpoPeriods = GpoPeriods/48; # Convert GPO in days
+    
+    for cur_rowFig in 1:size(axx,1), cur_rowGpo in 1:size(GpoPeriods,1) #For each row
+        #of the figure and for each row of GpoPeriods
+        
+        # Draw a red doted line at the starting and ending instant of the GPO perio
+        axx[cur_rowFig,1].axvline(GpoPeriods[cur_rowGpo,1],color="r",ls=":",alpha=0.5)
+        axx[cur_rowFig,1].axvline(GpoPeriods[cur_rowGpo,2],color="r",ls=":",alpha=0.5)
+        
+        # Highlight the GPO period
+        axx[cur_rowFig,1].axvspan(GpoPeriods[cur_rowGpo,1], 
+                                  GpoPeriods[cur_rowGpo,2], color="lightcoral",alpha=0.1)
+
+    end
+  end
+
+end
+
+
+
+#***********************************************************************************************
+
+"""
+    plot_solHomRslt(solvProb, GpoPeriods=[0 0]; <Keywords arguments>)
 
     Plot the resolved optimization problem on the the time frame considered 
 
 # Arguments
 
-- `args::`
-- `args[1] ::Structure`: Output structure solarHome_data
+- `solvProb::U`: Structure of type solvedProbData.
+- `GpoPeriods::Array{T,2}=[0 0]`: Array with each row defining a GPO period. Ex = [48 60] (outage occuring from hour 24 to 30)
+where {T<: Real, U<:AbstractProblemVars}
+
+# Keywords Arguments
+-`fig_size::Tuple{T,T}=(8,5)`: Figure to plot size.
 
 """
-function plot_solHomRslt(args...; fig_size::Tuple{T,T}=(8,5)) where {T<: Real}
+function plot_solHomRslt(solvProb::U, GpoPeriods::Array{T,2}=[0 0]; fig_size::Tuple{T,T}=(8,5)) where {T<: Real, U<:AbstractProblemVars}
     
-      #Unpack input
-      input=args[1];
-      t=input.t
-      sim_tim = input.sim_tim
-      nb_days = input.nb_days
+      #Unpack solvProb
+      t=solvProb.t
+      sim_tim = solvProb.sim_tim
+      nb_days = solvProb.nb_days
   
-      Pg_opt = input.ctrlVars.Pg
-      Psh_opt = input.ctrlVars.Ps
-      Ps_opt = input.ctrlVars.Pb
-      Pcu_opt = input.ctrlVars.Pw
+      Pg_opt = solvProb.ctrlVars.Pg
+      Psh_opt = solvProb.ctrlVars.Ps
+      Ps_opt = solvProb.ctrlVars.Pb
+      Pcu_opt = solvProb.ctrlVars.Pw
   
-      P_nl = input.Pl_star - input.Pv_star
+      P_nl = solvProb.Pl_star - solvProb.Pv_star
       P_nlSum = round((sum(P_nl)),digits=2)
-      Es_opt = input.Eb_opt
+      Es_opt = solvProb.Eb_opt
 
-      var = initControledVars(input.ctrlVars);
+      var = initControledVars(solvProb.ctrlVars);
       P_gr_t, Psh_t, P_c_t, Cout_cons = var.Pg_t, var.Ps_t, var.Pw_t,var.Cost_t ;
 
 
@@ -320,24 +384,14 @@ function plot_solHomRslt(args...; fig_size::Tuple{T,T}=(8,5)) where {T<: Real}
           ylim=(-.3, 8.3)
       )
       ax[2,1].grid()
-  
-  
+      
+ 
+    
       #Highligh off peak periods
-      ~,x_max = ax[1,1].get_xlim()
-      for i in 0:1:x_max
-          ax[1,1].axvspan(i, i+0.25,color="dodgerblue", alpha=0.1)
-          ax[2,1].axvspan(i, i+0.25,color="dodgerblue", alpha=0.1)
-
-      end
-  
-      # If more than one argument, color in dotted red the moment where the outage apears and 
-      # in a a shade of red the period where the outage stays.  
-      if length(args) >=3
-              ax[1,1].axvspan(1, nb_days+.025,color="lightcoral",alpha=0.02)
-              ax[2,1].axvspan(1, nb_days+.025,color="lightcoral",alpha=0.02)
-              ax[1,1].axvline(1,color="r",ls=":")
-              ax[2,1].axvline(1,color="r",ls=":")
-      end
+      highlightOffPeak(ax) 
+      
+       #Highligh GPO periods
+      highlightGPO(ax, GpoPeriods)
 
       
       Es_fin = round(Es_opt[end-1],sigdigits=4)
@@ -346,6 +400,8 @@ function plot_solHomRslt(args...; fig_size::Tuple{T,T}=(8,5)) where {T<: Real}
       #fig.suptitle("ℙ fail: $p1fe3×10⁻³, shedding cost: $(C_shed[1]/1e3)×10³, 𝔼(J): $EJ")
 
 end
+
+
 
 
 
