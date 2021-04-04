@@ -73,7 +73,8 @@ where {T <: AbstractFloat}
 controled variable over the problème horizon
  
 """
-function initControledVars(Pg::Array{T, 1}, Pb::Array{T, 1}, Pw::Array{T, 1}, Ps::Array{T, 1}; opt::AbstractString = " " ) where {T<:AbstractFloat}
+function initControledVars(Pg::Array{T, 1}, Pb::Array{T, 1}, Pw::Array{T, 1}, 
+        Ps::Array{T, 1}; opt::AbstractString = " " ) where {T<:AbstractFloat}
   
   if isequal(opt," " )
     return ControledVars(Pg, Pb,Pw, Ps)
@@ -167,7 +168,8 @@ end
 Compute the energy dispatch using the Rulebased algorithm described in Figure 3.9 of the 
 thesis.
 
-`Return`  a subtype `AbstractControledVars` and  `E_b::Array{<:AbstractFloat,1+N}` with N the problem's Horizon.
+`Return`  a subtype `AbstractControledVars` and  `E_b::Array{<:AbstractFloat,1+N}` with N the 
+problem's Horizon.
 
 
 # Arguments
@@ -176,7 +178,8 @@ thesis.
 - `fixedVariables::AbstractFixedVars=initFixedVars()`: Fied variables structure 
 
 # Keywords arguments 
-- `GpoPeriods::Array{T,2}=[0 0]`: Array with each row defining a GPO period `where {T<:Integer}`.Ex = [48 60] (outage occuring from hour 24 to 30)
+- `GpoPeriods::Array{T,2}=[0 0]`: Array with each row defining a GPO period `where {T<:Integer}`.
+    Ex = [48 60] (outage occuring from hour 24 to 30)
 - `powerSave::Real=0`: Power save option in percentage of the nominal load demande (0.5 for 
 0.5Pl_star for instance). By default, no power save.
                 
@@ -282,7 +285,8 @@ end
 # Arguments
 
 - `axx::Array{PyObject,1}`: An array of type PyObject. Output of `fig, axx = subplots(...)`
-- `GpoPeriods::Array{T,2}=[0 0]`: Array with each row defining a GPO period `where {T<:Integer}`.Ex = [48 60] (outage occuring from hour 24 to 30)
+- `GpoPeriods::Array{T,2}=[0 0]`: Array with each row defining a GPO period `where {T<:Integer}`.
+    Ex = [48 60] (outage occuring from hour 24 to 30)
 
 """
 function highlightGPO(axx::Array{T,1}, GpoPeriods::Array{U,2}=[0 0]) where {T<:PyObject, U<:Integer}
@@ -400,13 +404,6 @@ function plot_solHomRslt(solvProb::U, GpoPeriods::Array{T,2}=[0 0]; fig_size::Tu
       #fig.suptitle("ℙ fail: $p1fe3×10⁻³, shedding cost: $(C_shed[1]/1e3)×10³, 𝔼(J): $EJ")
 
 end
-
-
-
-
-
-  
-
 
   
 end
