@@ -8,10 +8,6 @@ Pv_max = 4;
 firstRow = 2; 
 lastRow = 48*nb_days2load; # Number of line to read in the file
 
-#data = CSV.read("/home/supelec/My_Jupiter/GitJupLab/SolarHomeData/2011-2012/2011_2012_Cstm1_30.csv";
-    #skipto=firstRow, limit=lastRow);
-
-
 
 data2010_11 = DataFrame(CSV.File("/home/supelec/My_Jupiter/GitJupLab/SolarHomeData/2010-2011/2010_2011_Cstm61_90.csv";
     skipto=firstRow, limit=lastRow));
